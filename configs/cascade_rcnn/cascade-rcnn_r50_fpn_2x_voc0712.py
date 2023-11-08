@@ -77,3 +77,14 @@ model = dict(
                 loss_bbox=dict(type='SmoothL1Loss', beta=1.0, loss_weight=1.0))
         ]),
 )
+
+train_dataloader = dict(
+    dataset=dict(
+        metainfo=metainfo,
+    ))
+
+val_dataloader = dict(
+    dataset=dict(
+        metainfo=metainfo,
+    ))
+test_dataloader = val_dataloader
