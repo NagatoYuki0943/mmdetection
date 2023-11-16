@@ -1,7 +1,8 @@
 _base_ = [
     '../_base_/models/cascade-rcnn_r50_fpn.py',
     '../_base_/datasets/voc0712_bubbliiiing.py',
-    '../_base_/schedules/schedule_2x.py', '../_base_/default_runtime.py'
+    # '../_base_/schedules/schedule_2x.py',
+    '../_base_/default_runtime.py'
 ]
 
 classes = (
@@ -24,6 +25,14 @@ num_classes = len(classes)  # Number of classes for classification
 # model settings
 model = dict(
     roi_head=dict(
+        type='CascadeRoIHead',
+        num_stages=3,
+        stage_loss_weights=[1, 0.5, 0.25],
+        bbox_roi_extractor=dict(
+            type='SingleRoIExtractor',
+            roi_layer=dict(type='RoIAlign', output_size=7, sampling_ratio=0),
+            out_channels=256,
+            featmap_strides=[4, 8, 16, 32]),
         bbox_head=[
             dict(
                 type='Shared2FCBBoxHead',
@@ -88,3 +97,44 @@ val_dataloader = dict(
         metainfo=metainfo,
     ))
 test_dataloader = val_dataloader
+
+
+# modified from `../_base_/schedules/schedule_2x.py`
+# training schedule for 2x
+train_cfg = dict(type='EpochBasedTrainLoop', max_epochs=24, val_interval=1)
+val_cfg = dict(type='ValLoop')
+test_cfg = dict(type='TestLoop')
+
+# learning rate
+param_scheduler = [
+    dict(
+        type='LinearLR',
+        start_factor=0.001,
+        by_epoch=True,
+        begin=0,
+        end=1,
+        # update by iter
+        convert_to_iter_based=True,
+    ),
+    # main learning rate scheduler
+    dict(
+        type='CosineAnnealingLR',
+        T_max=23,
+        by_epoch=True,
+        begin=1,
+        end=24,
+        # update by iter
+        convert_to_iter_based=True,
+    )
+]
+
+# optimizer
+optim_wrapper = dict(
+    type='OptimWrapper',
+    optimizer=dict(type='SGD', lr=0.02, momentum=0.937, weight_decay=0.0001))
+
+# Default setting for scaling LR automatically
+#   - `enable` means enable scaling LR automatically
+#       or not by default.
+#   - `base_batch_size` = (8 GPUs) x (2 samples per GPU).
+auto_scale_lr = dict(enable=True, base_batch_size=16)
